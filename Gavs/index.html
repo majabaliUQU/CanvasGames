@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مغامرة القفز اللانهائي</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Arabic Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 h-screen flex items-center justify-center overflow-hidden p-0 m-0">
+
+    <!-- حاوية اللعبة الرئيسية -->
+    <div class="relative w-full h-full max-w-md max-h-[850px] aspect-[9/16] bg-black overflow-hidden sm:rounded-2xl flex flex-col items-center justify-center">
+        
+        <!-- Canvas الخاص باللعبة -->
+        <canvas id="gameCanvas" class="w-full h-full bg-gradient-to-b from-amber-900 via-orange-900 to-amber-950"></canvas>
+
+        <!-- واجهة البداية (Main Menu) -->
+        <div id="startScreen" class="absolute inset-0 bg-black/75 flex flex-col items-center justify-between p-8 text-white z-20 text-center transition-all duration-300">
+            <div class="mt-12">
+                <h1 class="text-4xl font-black text-amber-400 drop-shadow-lg mb-2">وثب الصحراء</h1>
+                <p class="text-amber-200 text-sm">تحدَّ الجاذبية واصعد إلى القمة!</p>
+            </div>
+
+            <!-- عرض الشخصية بشكل تفاعلي -->
+            <div class="w-40 h-40 flex items-center justify-center relative bg-amber-950/40 border border-amber-500/30 rounded-full my-4">
+                <img id="previewSprite" src="1.png" alt="الشخصية" class="h-32 object-contain animate-bounce" onerror="this.style.display='none'; document.getElementById('previewFallback').classList.remove('hidden')">
+                <div id="previewFallback" class="hidden text-amber-500 text-6xl">🧑</div>
+            </div>
+
+            <div class="w-full space-y-4 mb-8">
+                <!-- أزرار التحكم والتعليمات -->
+                <div class="bg-white/10 p-4 rounded-xl text-xs space-y-2 text-right">
+                    <p class="font-bold text-amber-300 mb-1 text-center text-sm">طريقة اللعب للجوال 📱</p>
+                    <p><i class="fa-solid fa-arrows-left-right text-amber-400 ml-1"></i> اسحب إصبعك يميناً ويساراً لتحريك الشخصية.</p>
+                    <p><i class="fa-solid fa-bolt text-amber-400 ml-1"></i> اجمع القهوة والبخور للحصول على قوى خارقة للتحليق.</p>
+                    <p><i class="fa-solid fa-shield-halved text-amber-400 ml-1"></i> الدرع يحميك من السقوط لمرة واحدة!</p>
+                </div>
+
+                <button id="startButton" class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xl rounded-xl shadow-lg transform active:scale-95 transition-all">
+                    إبـدأ الـلـعـب <i class="fa-solid fa-play mr-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- واجهة انتهاء اللعبة (Game Over) -->
+        <div id="gameOverScreen" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-between p-8 text-white z-20 text-center hidden transition-all duration-300">
+            <div class="mt-12">
+                <h2 class="text-3xl font-black text-red-500 drop-shadow mb-2">انتهت اللعبة!</h2>
+                <p class="text-slate-400 text-sm">لقد سقطت من ارتفاع شاهق!</p>
+            </div>
+
+            <!-- إحصائيات الجولة -->
+            <div class="bg-amber-950/30 border border-amber-500/20 p-6 rounded-2xl w-full max-w-xs space-y-4 my-4">
+                <div>
+                    <span class="text-slate-400 text-sm block">النقاط الحالية</span>
+                    <span id="finalScore" class="text-4xl font-black text-amber-400">0</span>
+                </div>
+                <div class="border-t border-amber-500/10 pt-3 flex justify-between items-center px-4">
+                    <span class="text-slate-300">أعلى نتيجة 🏆</span>
+                    <span id="bestScore" class="text-xl font-bold text-white">0</span>
+                </div>
+                <div class="flex justify-between items-center px-4">
+                    <span class="text-slate-300">التمور المجموعة 🌴</span>
+                    <span id="collectedCoins" class="text-xl font-bold text-amber-300">0</span>
+                </div>
+            </div>
+
+            <div class="w-full space-y-3 mb-8">
+                <button id="restartButton" class="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg transform active:scale-95 transition-all">
+                    إعادة المحاولة <i class="fa-solid fa-rotate-right mr-2"></i>
+                </button>
+                <button id="menuButton" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm rounded-xl transition-all">
+                    القائمة الرئيسية
+                </button>
+            </div>
+        </div>
+
+        <!-- شريط اللمس المساعد (اختياري للتحكم الإضافي) -->
+        <div class="absolute bottom-4 left-4 right-4 flex justify-between pointer-events-none z-10 opacity-30">
+            <div class="text-white text-xs bg-black/40 px-3 py-1.5 rounded-full"><i class="fa-solid fa-hand-pointer animate-pulse ml-1"></i> اسحب للتحريك</div>
+            <div id="difficultyBadge" class="text-amber-400 text-xs bg-black/40 px-3 py-1.5 rounded-full font-bold">المستوى 1</div>
+        </div>
+
+    </div>
+
+    <script>
+        // إعداد الصوت التفاعلي المدمج
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'coin') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.setValueAtTime(1200, now + 0.08);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'powerup') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(900, now + 0.4);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'shield') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.5);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        // إعداد الكانفاس واللعبة
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // تحديد الحجم الداخلي الثابت للعبة لضمان ثبات اللوجيك والفيزياء
+        const GAME_WIDTH = 450;
+        const GAME_HEIGHT = 800;
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        // تحميل الصور ومقابض الأخطاء في حال عدم العثور عليها
+        const imgIdle = new Image();
+        imgIdle.src = '1.png';
+        const imgSquat = new Image();
+        imgSquat.src = '2.png';
+        const imgJump = new Image();
+        imgJump.src = '3.png';
+
+        let imagesLoaded = false;
+        let imagesCount = 0;
+        const checkImages = () => {
+            imagesCount++;
+            if (imagesCount >= 3) {
+                imagesLoaded = true;
+            }
+        };
+        imgIdle.onload = checkImages;
+        imgSquat.onload = checkImages;
+        imgJump.onload = checkImages;
+
+        // متغيرات اللعبة الرئيسية
+        let player, platforms, coins, powerups, particles;
+        let score = 0;
+        let highScore = localStorage.getItem('bestJumpScore') || 0;
+        let totalCoins = 0;
+        let difficulty = 1;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        let cameraY = 0;
+        let maxReachedY = 0;
+
+        // لمس الشاشة والتحكم
+        let touchStartX = null;
+        let touchCurrentX = null;
+        let isTouching = false;
+
+        // فئة اللاعب
+        class Player {
+            constructor() {
+                this.width = 54;
+                this.height = 135; // نسبة متناسقة لطول الشخصية في الصور
+                this.x = GAME_WIDTH / 2 - this.width / 2;
+                this.y = GAME_HEIGHT - 250;
+                this.vx = 0;
+                this.vy = 0;
+                this.gravity = 0.38;
+                this.jumpStrength = -12.5;
+                this.squatTimer = 0; // لتبديل الصورة لوضع التحضير للنقز
+
+                // مؤقتات القوة الخارقة
+                this.superJumpTimer = 0; // القهوة
+                this.flyTimer = 0;       // البخور
+                this.shieldActive = false; // الدرع
+                this.magnetTimer = 0;    // المغناطيس
+            }
+
+            update() {
+                // تأثير القوى الخارقة على الجاذبية والسرعة
+                if (this.flyTimer > 0) {
+                    this.vy = -6.5; // طيران مستمر للأعلى
+                    this.flyTimer--;
+                    // توليد جسيمات بخور/دخان تحته
+                    if (Math.random() < 0.4) {
+                        particles.push(new Particle(this.x + this.width / 2, this.y + this.height, 'rgba(230, 230, 230, 0.6)', -1 + Math.random() * 2, 2, 8));
+                    }
+                } else if (this.superJumpTimer > 0) {
+                    this.vy = -14; // وثبة خارقة مستمرة
+                    this.superJumpTimer--;
+                    // توليد جسيمات ذهبية نارية
+                    if (Math.random() < 0.5) {
+                        particles.push(new Particle(this.x + this.width / 2, this.y + this.height, 'rgba(245, 158, 11, 0.8)', -2 + Math.random() * 4, 3, 10));
+                    }
+                } else {
+                    this.vy += this.gravity;
+                }
+
+                // حركة أفقية سلسة بناءً على سحب اللمس
+                if (isTouching && touchCurrentX !== null) {
+                    // تحريك اللاعب باتجاه نسبة السحب بالنسبة لعرض الكانفاس الحقيقي
+                    const rect = canvas.getBoundingClientRect();
+                    const relativeTouchX = ((touchCurrentX - rect.left) / rect.width) * GAME_WIDTH;
+                    // تتبع موضع اللمس مباشرة بسلاسة
+                    const targetX = relativeTouchX - this.width / 2;
+                    this.x += (targetX - this.x) * 0.22; 
+                } else {
+                    // تباطؤ تدريجي عند إفلات الشاشة
+                    this.vx *= 0.85;
+                    this.x += this.vx;
+                }
+
+                // حدود الشاشة (دوران اللاعب من جهة لثانية)
+                if (this.x < -this.width / 2) this.x = GAME_WIDTH - this.width / 2;
+                if (this.x > GAME_WIDTH - this.width / 2) this.x = -this.width / 2;
+
+                this.y += this.vy;
+
+                // تحديث مؤقتات القوة الخارقة الأخرى
+                if (this.magnetTimer > 0) this.magnetTimer--;
+
+                if (this.squatTimer > 0) this.squatTimer--;
+            }
+
+            draw() {
+                // اختيار الصورة المناسبة حسب الحالة
+                let currentImg = imgIdle;
+
+                if (this.vy < -0.5) {
+                    currentImg = imgJump; // وضع القفز (3)
+                } else if (this.squatTimer > 0) {
+                    currentImg = imgSquat; // وضع التحضير (2)
+                } else {
+                    currentImg = imgIdle; // وضع الوقوف/السقوط الهادئ (1)
+                }
+
+                ctx.save();
+                
+                // إضافة هالة ضوئية في حال كانت هناك قوى خارقة نشطة
+                if (this.superJumpTimer > 0) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = '#f59e0b'; // ذهبي
+                } else if (this.flyTimer > 0) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#a8a29e'; // فضي للبخور
+                } else if (this.shieldActive) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#3b82f6'; // أزرق للدرع
+                }
+
+                // رسم الصورة أو بديل المتجه في حال عدم توفرها بعد
+                if (imagesLoaded) {
+                    ctx.drawImage(currentImg, this.x, this.y, this.width, this.height);
+                } else {
+                    // بديل هندسي أنيق في حال غياب الصور
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.roundRect(this.x, this.y, this.width, this.height, 10);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '14px Tajawal';
+                    ctx.fillText('الشخصية', this.x + 5, this.y + 30);
+                }
+
+                // رسم شكل درع الحماية الفعلي حول الشخصية
+                if (this.shieldActive) {
+                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.height / 1.6, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            jump() {
+                this.vy = this.jumpStrength;
+                this.squatTimer = 7; // تشغيل وضع الاستعداد لسبعة إطارات فور القفز
+                playSound('jump');
+            }
+        }
+
+        // فئة المنصات
+        class Platform {
+            constructor(x, y, type = 'normal') {
+                this.width = 85;
+                this.height = 18;
+                this.x = x;
+                this.y = y;
+                this.type = type; // normal, moving, breakable
+                this.vx = (type === 'moving') ? (1 + Math.random() * 1.5) * (Math.random() > 0.5 ? 1 : -1) : 0;
+                this.broken = false;
+                this.opacity = 1;
+            }
+
+            update() {
+                if (this.type === 'moving') {
+                    this.x += this.vx * (1 + (difficulty - 1) * 0.15); // زيادة سرعة حركة المنصات مع الصعوبة
+                    if (this.x < 0 || this.x + this.width > GAME_WIDTH) {
+                        this.vx *= -1;
+                    }
+                }
+
+                if (this.broken) {
+                    this.opacity -= 0.1;
+                }
+            }
+
+            draw() {
+                if (this.broken && this.opacity <= 0) return;
+
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+
+                // تصميم وتلوين المنصات حسب نوعها
+                let gradient = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
+                if (this.type === 'normal') {
+                    gradient.addColorStop(0, '#10b981'); // أخضر زمردي
+                    gradient.addColorStop(1, '#047857');
+                    ctx.strokeStyle = '#065f46';
+                } else if (this.type === 'moving') {
+                    gradient.addColorStop(0, '#3b82f6'); // أزرق للمتحركة
+                    gradient.addColorStop(1, '#1d4ed8');
+                    ctx.strokeStyle = '#1e40af';
+                } else if (this.type === 'breakable') {
+                    gradient.addColorStop(0, '#d97706'); // برتقالي مائل للبني للقابلة للكسر
+                    gradient.addColorStop(1, '#92400e');
+                    ctx.strokeStyle = '#78350f';
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.lineWidth = 1.5;
+
+                // رسم المنصة بحواف دائرية أنيقة
+                ctx.beginPath();
+                ctx.roundRect(this.x, this.y, this.width, this.height, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                // رسم خط زخرفي يعطيها شكلًا ثلاثي الأبعاد
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(this.x + 5, this.y + 3, this.width - 10, 3);
+
+                ctx.restore();
+            }
+        }
+
+        // فئة التمور (العملات)
+        class Coin {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 12;
+                this.angle = 0;
+                this.collected = false;
+            }
+
+            update() {
+                this.angle += 0.05; // دوران العملة
+
+                // جذب العملات في حال تفعيل المغناطيس
+                if (player.magnetTimer > 0 && !this.collected) {
+                    const dx = player.x + player.width / 2 - this.x;
+                    const dy = player.y + player.height / 2 - this.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 180) { // مسافة الجذب
+                        this.x += (dx / dist) * 7;
+                        this.y += (dy / dist) * 7;
+                    }
+                }
+            }
+
+            draw() {
+                if (this.collected) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                // تدوير العملة في البعد ثلاثي الأبعاد المزيف
+                ctx.scale(Math.abs(Math.sin(this.angle)), 1);
+
+                // شكل التمرة الذهبية
+                ctx.fillStyle = '#f59e0b'; // لون ذهبي
+                ctx.strokeStyle = '#78350f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.radius, this.radius * 1.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // لمعة على التمرة
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.ellipse(-3, -4, 4, 6, Math.PI/4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // فئة أدوات القوة الخارقة (Power-ups)
+        class PowerUp {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.width = 28;
+                this.height = 32;
+                this.type = type; // coffee (Saudi coffee), bakhour (Oud smoke), shield (blue sphere), magnet (horseshoe)
+                this.collected = false;
+                this.hoverOffset = 0;
+            }
+
+            update() {
+                this.hoverOffset = Math.sin(Date.now() / 150) * 4; // حركة تذبذب لطيفة
+            }
+
+            draw() {
+                if (this.collected) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y + this.hoverOffset);
+
+                // رسم خلفية دائرية مضيئة للقوة الخارقة
+                ctx.shadowBlur = 10;
+                if (this.type === 'coffee') {
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.fillStyle = '#f59e0b';
+                } else if (this.type === 'bakhour') {
+                    ctx.shadowColor = '#10b981';
+                    ctx.fillStyle = '#10b981';
+                } else if (this.type === 'shield') {
+                    ctx.shadowColor = '#3b82f6';
+                    ctx.fillStyle = '#3b82f6';
+                } else if (this.type === 'magnet') {
+                    ctx.shadowColor = '#ec4899';
+                    ctx.fillStyle = '#ec4899';
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.width/2, this.height/2, 20, 0, Math.PI*2);
+                ctx.fill();
+
+                // رسم الأيقونات المميزة بداخلها
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                let icon = '⚡';
+                if (this.type === 'coffee') icon = '☕'; // قهوة سعودية للاندفاع
+                if (this.type === 'bakhour') icon = '💨'; // دخان البخور للطيران الهادئ
+                if (this.type === 'shield') icon = '🛡️'; // درع واقي
+                if (this.type === 'magnet') icon = '🧲'; // مغناطيس
+
+                ctx.fillText(icon, this.width/2, this.height/2);
+                ctx.restore();
+            }
+        }
+
+        // فئة جزيئات التأثيرات البصرية
+        class Particle {
+            constructor(x, y, color, vx, vy, size) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = size;
+                this.alpha = 1;
+                this.decay = 0.02 + Math.random() * 0.02;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // إنشاء منصة عشوائية ذكية
+        function spawnPlatform(y, isStarting = false) {
+            let type = 'normal';
+            if (!isStarting) {
+                const rand = Math.random() * 100;
+                // يزداد ظهور المنصات المتحركة والصعبة مع زيادة مستوى الصعوبة
+                const movingChance = Math.min(15 + difficulty * 10, 55); 
+                const breakableChance = Math.min(5 + difficulty * 7, 30);
+
+                if (rand < movingChance) {
+                    type = 'moving';
+                } else if (rand < movingChance + breakableChance) {
+                    type = 'breakable';
+                }
+            }
+
+            // ضمان ألا تظهر المنصات خارج حدود الشاشة الجانبية بالكامل
+            const x = Math.random() * (GAME_WIDTH - 90);
+            const platform = new Platform(x, y, type);
+            platforms.push(platform);
+
+            // توليد عملات نقدية فوق المنصة بنسبة معينة (فقط للمنصات العادية والمتحركة)
+            if (type !== 'breakable' && Math.random() < 0.35) {
+                coins.push(new Coin(x + platform.width / 2, y - 30));
+            }
+
+            // توليد قوى خارقة بشكل نادر جداً ومميز
+            if (Math.random() < 0.06 && !isStarting) {
+                const types = ['coffee', 'bakhour', 'shield', 'magnet'];
+                const randomType = types[Math.floor(Math.random() * types.length)];
+                powerups.push(new PowerUp(x + platform.width / 2 - 14, y - 45, randomType));
+            }
+        }
+
+        // إعادة تهيئة وتصفير اللعبة
+        function resetGame() {
+            player = new Player();
+            platforms = [];
+            coins = [];
+            powerups = [];
+            particles = [];
+            score = 0;
+            cameraY = 0;
+            maxReachedY = 0;
+            difficulty = 1;
+            document.getElementById('difficultyBadge').innerText = "المستوى " + difficulty;
+
+            // منصة أرضية مؤقتة واسعة تحت اللاعب لضمان البداية المستقرة
+            const basePlatform = new Platform(GAME_WIDTH / 2 - 100, GAME_HEIGHT - 100, 'normal');
+            basePlatform.width = 200; 
+            platforms.push(basePlatform);
+
+            // بناء المنصات التمهيدية الأولى
+            let currentY = GAME_HEIGHT - 180;
+            for (let i = 0; i < 9; i++) {
+                spawnPlatform(currentY, true);
+                currentY -= 75 + Math.random() * 25;
+            }
+        }
+
+        // رسم خلفية تلال الصحراء الإبداعية داخل الكانفاس لتضفي عمقًا
+        function drawDesertBackground() {
+            // السماء المتدرجة (من الأزرق الداكن لغروب مشمس)
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            skyGrad.addColorStop(0, '#1e1b4b'); // كحلي غامق
+            skyGrad.addColorStop(0.4, '#7c2d12'); // برتقالي صحراوي محروق
+            skyGrad.addColorStop(1, '#fed7aa'); // خوخي فاتح
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // رسم الشمس الدافئة الغاربة في الأفق البعيد جداً
+            ctx.fillStyle = 'rgba(253, 186, 116, 0.45)';
+            ctx.beginPath();
+            ctx.arc(GAME_WIDTH / 2, GAME_HEIGHT - 150 + (cameraY * 0.05), 80, 0, Math.PI * 2);
+            ctx.fill();
+
+            // رسم الكثبان الرملية (دقة الحركة تعتمد على الكاميرا لمحاكاة البارالاكس Parallax)
+            ctx.save();
+            ctx.fillStyle = '#451a03'; // بني داكن جداً للتل الخلفي
+            ctx.beginPath();
+            ctx.moveTo(0, GAME_HEIGHT);
+            for (let x = 0; x <= GAME_WIDTH; x += 10) {
+                let y = GAME_HEIGHT - 120 + Math.sin(x * 0.005 + cameraY * 0.02) * 35;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+            ctx.fill();
+
+            ctx.fillStyle = '#78350f'; // تل رملي أوسط
+            ctx.beginPath();
+            ctx.moveTo(0, GAME_HEIGHT);
+            for (let x = 0; x <= GAME_WIDTH; x += 10) {
+                let y = GAME_HEIGHT - 80 + Math.sin(x * 0.008 - cameraY * 0.04) * 25;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // حلقة اللعبة الرئيسية وعقد المعالجة الفيزيائية
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+
+            // 1. مسح ورسم الخلفية
+            drawDesertBackground();
+
+            // 2. تحديث الكاميرا لتتبع ارتفاع اللاعب بسلاسة بالغة
+            if (player.y < GAME_HEIGHT / 2) {
+                const diff = (GAME_HEIGHT / 2) - player.y;
+                cameraY += diff;
+                player.y += diff;
+
+                // تحديث موقع المنصات والعناصر الأخرى متزامنة مع الكاميرا
+                platforms.forEach(p => p.y += diff);
+                coins.forEach(c => c.y += diff);
+                powerups.forEach(pw => pw.y += diff);
+                particles.forEach(pt => pt.y += diff);
+
+                // حساب النقاط بناءً على المسافة الشاهقة المقطوعة للأعلى
+                score = Math.floor(cameraY);
+                if (score > maxReachedY) {
+                    maxReachedY = score;
+                }
+            }
+
+            // 3. تحديث ورسم الجزيئات
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 4. تحديث ورسم المنصات والاصطدامات
+            let topMostY = GAME_HEIGHT;
+            for (let i = platforms.length - 1; i >= 0; i--) {
+                const p = platforms[i];
+                p.update();
+                p.draw();
+
+                if (p.y < topMostY) {
+                    topMostY = p.y;
+                }
+
+                // الكشف عن الهبوط والتصادم مع اللاعب (فقط في حالة الهبوط للأسفل)
+                if (player.vy > 0 && 
+                    player.x + player.width * 0.2 < p.x + p.width && 
+                    player.x + player.width * 0.8 > p.x && 
+                    player.y + player.height > p.y && 
+                    player.y + player.height < p.y + p.height + 15) {
+                    
+                    if (p.type === 'breakable') {
+                        p.broken = true;
+                        // توليد جزيئات تكسير المنصة
+                        for (let k = 0; k < 8; k++) {
+                            particles.push(new Particle(p.x + p.width / 2, p.y, '#92400e', -2 + Math.random() * 4, -1 - Math.random() * 3, 4));
+                        }
+                        playSound('gameover'); // نبرة خفيفة للتكسير
+                    } else {
+                        player.jump(); // القفز العادي والذاتي
+                    }
+                }
+
+                // إزالة المنصات الهابطة خارج الشاشة من الأسفل
+                if (p.y > GAME_HEIGHT + 50) {
+                    platforms.splice(i, 1);
+                }
+            }
+
+            // توليد منصات جديدة باستمرار في الأعلى عند تجاوز الكاميرا لارتفاعات جديدة
+            while (platforms.length < 11) {
+                // تباعد ذكي بين المنصات الجديدة يزداد بزيادة مستوى الصعوبة
+                const minGap = Math.min(65 + difficulty * 6, 150);
+                const maxGap = Math.min(90 + difficulty * 10, 220);
+                const nextY = topMostY - (minGap + Math.random() * (maxGap - minGap));
+                spawnPlatform(nextY);
+            }
+
+            // 5. تحديث ورسم العملات (التمور)
+            for (let i = coins.length - 1; i >= 0; i--) {
+                const c = coins[i];
+                c.update();
+                c.draw();
+
+                // التحقق من اصطدام التمور وجمعها
+                const playerCenterX = player.x + player.width / 2;
+                const playerCenterY = player.y + player.height / 2;
+                const dist = Math.hypot(playerCenterX - c.x, playerCenterY - c.y);
+
+                if (dist < player.height / 2 + c.radius && !c.collected) {
+                    c.collected = true;
+                    totalCoins++;
+                    score += 150; // مكافأة جمع تمرة
+                    playSound('coin');
+                    
+                    // توليد وميض ذهبي مبهر عند اللمس
+                    for (let j = 0; j < 5; j++) {
+                        particles.push(new Particle(c.x, c.y, '#fef08a', -2 + Math.random() * 4, -2 + Math.random() * 4, 3));
+                    }
+                    coins.splice(i, 1);
+                } else if (c.y > GAME_HEIGHT + 50) {
+                    coins.splice(i, 1); // تنظيف الذاكرة
+                }
+            }
+
+            // 6. تحديث ورسم القوى الخارقة (Power-ups)
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pw = powerups[i];
+                pw.update();
+                pw.draw();
+
+                // فحص الاصطدام والجمع
+                if (player.x + player.width > pw.x && 
+                    player.x < pw.x + pw.width && 
+                    player.y + player.height > pw.y && 
+                    player.y < pw.y + pw.height && !pw.collected) {
+                    
+                    pw.collected = true;
+                    playSound('powerup');
+
+                    // معالجة نوع القوة النشطة
+                    if (pw.type === 'coffee') {
+                        player.superJumpTimer = 220; // وثبات متتالية نفاثة
+                        player.flyTimer = 0;
+                    } else if (pw.type === 'bakhour') {
+                        player.flyTimer = 260; // طيران بخاري مستقر هادئ
+                        player.superJumpTimer = 0;
+                    } else if (pw.type === 'shield') {
+                        player.shieldActive = true;
+                        playSound('shield');
+                    } else if (pw.type === 'magnet') {
+                        player.magnetTimer = 400; // جذب مستمر للعملات البعيدة
+                    }
+
+                    // توليد تأثيرات حركية ملونة للمكافأة
+                    for (let j = 0; j < 12; j++) {
+                        particles.push(new Particle(pw.x + 14, pw.y + 16, '#ffffff', -3 + Math.random() * 6, -3 + Math.random() * 6, 4));
+                    }
+                    powerups.splice(i, 1);
+                } else if (pw.y > GAME_HEIGHT + 50) {
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // 7. تحديث ورسم اللاعب
+            player.update();
+            player.draw();
+
+            // 8. حساب مستوى الصعوبة ديناميكياً مع الزمن والارتفاع المكتسب
+            const calculatedDiff = Math.min(Math.floor(score / 5000) + 1, 8);
+            if (calculatedDiff !== difficulty) {
+                difficulty = calculatedDiff;
+                document.getElementById('difficultyBadge').innerText = "المستوى " + difficulty;
+            }
+
+            // 9. التحقق من انتهاء اللعبة والسقوط في الهاوية
+            if (player.y > GAME_HEIGHT + 100) {
+                if (player.shieldActive) {
+                    // ميزة الدرع: تنقذ اللاعب عبر توليد منصة نجاة تحته وتثبيته فوقها وتدمير الدرع
+                    player.shieldActive = false;
+                    player.y = GAME_HEIGHT / 2;
+                    player.vy = -10; // قفزة انقاذية
+                    playSound('shield');
+                    const safetyPlatform = new Platform(player.x - 20, GAME_HEIGHT / 2 + 100, 'normal');
+                    safetyPlatform.width = 120;
+                    platforms.push(safetyPlatform);
+                } else {
+                    gameOver();
+                }
+            }
+
+            // 10. رسم واجهة المعلومات على الشاشة (HUD)
+            drawHUD();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // رسم شريط المعلومات داخل الكانفاس لتجربة مستخدم مدمجة
+        function drawHUD() {
+            ctx.save();
+            
+            // خلفية مظلمة شفافة في الأعلى لقراءة سهلة
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.fillRect(0, 0, GAME_WIDTH, 65);
+
+            // عرض النقاط الحالية
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 20px Tajawal';
+            ctx.textAlign = 'right';
+            ctx.fillText('النقاط: ' + Math.floor(maxReachedY), GAME_WIDTH - 20, 38);
+
+            // عرض عدد التمور المجموعة
+            ctx.fillStyle = '#f59e0b';
+            ctx.textAlign = 'left';
+            ctx.fillText('🌴 ' + totalCoins, 20, 38);
+
+            // رسم عداد المؤقت التنازلي للقوى الخارقة بشكل بصري رائع
+            let activeTimerText = "";
+            let timerPercent = 0;
+            let timerColor = "#ffffff";
+
+            if (player.superJumpTimer > 0) {
+                activeTimerText = "القهوة السعودية ⚡";
+                timerPercent = player.superJumpTimer / 220;
+                timerColor = "#f59e0b";
+            } else if (player.flyTimer > 0) {
+                activeTimerText = "البخور الطائر 💨";
+                timerPercent = player.flyTimer / 260;
+                timerColor = "#10b981";
+            } else if (player.magnetTimer > 0) {
+                activeTimerText = "المغناطيس 🧲";
+                timerPercent = player.magnetTimer / 400;
+                timerColor = "#ec4899";
+            }
+
+            if (timerPercent > 0) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.roundRect(GAME_WIDTH / 2 - 80, 75, 160, 24, 12);
+                ctx.fill();
+
+                // رسم خط تقدم القوة المتبقية
+                ctx.fillStyle = timerColor;
+                ctx.beginPath();
+                ctx.roundRect(GAME_WIDTH / 2 - 76, 79, 152 * timerPercent, 16, 8);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px Tajawal';
+                ctx.textAlign = 'center';
+                ctx.fillText(activeTimerText, GAME_WIDTH / 2, 91);
+            }
+
+            ctx.restore();
+        }
+
+        // معالجة نهاية اللعبة
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            playSound('gameover');
+
+            // حفظ أعلى نتيجة محلياً
+            const finalScoreVal = Math.floor(maxReachedY);
+            if (finalScoreVal > highScore) {
+                highScore = finalScoreVal;
+                localStorage.setItem('bestJumpScore', highScore);
+            }
+
+            // تحديث العناصر على واجهة المستخدم
+            document.getElementById('finalScore').innerText = finalScoreVal;
+            document.getElementById('bestScore').innerText = highScore;
+            document.getElementById('collectedCoins').innerText = totalCoins;
+
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        // إطلاق اللعبة وتشغيلها
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            gameState = 'PLAYING';
+            resetGame();
+            gameLoop();
+        }
+
+        // مستمعات الأحداث - أزرار القوائم
+        document.getElementById('startButton').addEventListener('click', () => {
+            startGame();
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            startGame();
+        });
+
+        document.getElementById('menuButton').addEventListener('click', () => {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+            gameState = 'START';
+        });
+
+        // --- مستمعات أحداث اللمس الذكية للجوال ---
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchCurrentX = touch.clientX;
+            isTouching = true;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isTouching) return;
+            const touch = e.touches[0];
+            touchCurrentX = touch.clientX;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isTouching = false;
+            touchStartX = null;
+            touchCurrentX = null;
+        }, { passive: false });
+
+        // دعم تحريك الماوس للمطورين للتجربة والاختبار على المتصفح العادي
+        canvas.addEventListener('mousedown', (e) => {
+            isTouching = true;
+            touchCurrentX = e.clientX;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isTouching) {
+                touchCurrentX = e.clientX;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isTouching = false;
+            touchCurrentX = null;
+        });
+
+        // تهيئة مبدئية أولية للمظهر عند تحميل المستند
+        window.onload = () => {
+            // رسم خلفية تجريبية قبل بدء التشغيل الفعلي
+            drawDesertBackground();
+        };
+    </script>
+</body>
+</html>
