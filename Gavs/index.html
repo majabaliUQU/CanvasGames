@@ -101,60 +101,50 @@
     </div>
 
     <script>
-        // إعداد الصوت التفاعلي المدمج
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
+        // تحميل ملف الصوت المشترك للعبة
+        const gameAudioFile = 'sound.mp3';
+
+        // دالة لتشغيل جزء معين من الملف الصوتي بشكل متداخل وآمن
+        function playSoundCue(startTime, duration) {
+            try {
+                // ننشئ كائن صوتي مستقل لكل تفعيل لتفادي مقاطعة الأصوات المتزامنة (مثل التقاط عملة أثناء القفز)
+                const audioClone = new Audio(gameAudioFile);
+                audioClone.currentTime = startTime;
+                
+                const playPromise = audioClone.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("تم حظر تشغيل الصوت مؤقتاً حتى يتفاعل المستخدم مع الشاشة:", error);
+                    });
+                }
+                
+                // نوقف هذا الصوت بعد انتهاء مدة التأثير المطلوبة ونحرره من الذاكرة
+                setTimeout(() => {
+                    audioClone.pause();
+                    audioClone.src = '';
+                }, duration * 1000); // تحويل الثواني إلى مللي ثانية
+            } catch (e) {
+                console.error("خطأ أثناء محاولة تشغيل الصوت:", e);
             }
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+        }
 
-            const now = audioCtx.currentTime;
-
+        // دالة توزيع الأصوات بناءً على الأحداث وبالمقاطع المحددة
+        function playSound(type) {
             if (type === 'jump') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                osc.start(now);
-                osc.stop(now + 0.15);
+                // صوت "هوبااا" يبدأ في الثانية 4.8 ومدته ثانية ونصف
+                playSoundCue(4.8, 1.5);
             } else if (type === 'coin') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.setValueAtTime(1200, now + 0.08);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
+                // صوت جمع التمور يبدأ في الثانية 1.0 ومدته نصف ثانية
+                playSoundCue(1.0, 0.5);
             } else if (type === 'powerup') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(900, now + 0.4);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                osc.start(now);
-                osc.stop(now + 0.4);
+                // صوت "اديلووو" يبدأ في الثانية 12.8 ومدته ثانية ونصف
+                playSoundCue(12.8, 1.5);
             } else if (type === 'shield') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
-                gain.gain.setValueAtTime(0.25, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
+                // صوت تفعيل الدرع الواقي يبدأ في الثانية 8.5 ومدته ثانية وعشر ثوانٍ
+                playSoundCue(8.5, 1.2);
             } else if (type === 'gameover') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.linearRampToValueAtTime(80, now + 0.5);
-                gain.gain.setValueAtTime(0.4, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                osc.start(now);
-                osc.stop(now + 0.5);
+                // صوت الخسارة "لااااا" يبدأ في الثانية 20.8 ومدته ثانيتان
+                playSoundCue(20.8, 2.0);
             }
         }
 
